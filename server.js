@@ -7,15 +7,17 @@ import bodyParser from "body-parser";
 import authRoutes from "./routes/auth.js";
 import sellerRoutes from "./routes/seller.js";
 import adminRoutes from "./routes/admin.js";
+import db from "./db.js";
 
 dotenv.config();
 
 const app = express();
 let isconnected = false;
-msql.connect(function(err) {
+db.getConnection(function(err, connection) {
   if (err) throw err;
   isconnected = true;
   console.log("Connected to database!");
+  connection.release();
 });
 // MIDDLEWARES
 app.use(express.json());
@@ -46,6 +48,9 @@ app.get("/", (req, res) => {
   res.send("Backend API running ✔️");
 });
 
-// const PORT = process.env.PORT || 4000;
-// app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
-module.exports = app;
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
+}
+
+export default app;
