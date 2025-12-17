@@ -3,16 +3,25 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+function firstEnv(keys, fallback = undefined) {
+  for (const k of keys) {
+    if (process.env[k] && process.env[k].trim() !== "") return process.env[k].trim();
+  }
+  return fallback;
+}
+
+const host = firstEnv(["MYSQLHOST", "DB_HOST"], "127.0.0.1");
+const user = firstEnv(["MYSQLUSER", "DB_USER"], "root");
+const password = firstEnv(["MYSQLPASSWORD", "DB_PASSWORD"], "");
+const database = firstEnv(["MYSQLDATABASE", "DB_NAME"], "");
+const port = parseInt(firstEnv(["MYSQLPORT", "DB_PORT"], "3306"), 10) || 3306;
+
 const db = mysql.createPool({
-  host: process.env.MYSQLHOST || process.env.DB_HOST,
-  user: process.env.MYSQLUSER || process.env.DB_USER,
-  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
-  database: process.env.MYSQLDATABASE || process.env.DB_NAME,
-  port: process.env.MYSQLPORT
-    ? parseInt(process.env.MYSQLPORT)
-    : process.env.DB_PORT
-    ? parseInt(process.env.DB_PORT)
-    : 3306,
+  host,
+  user,
+  password,
+  database,
+  port,
 
   waitForConnections: true,
   connectionLimit: 10,
