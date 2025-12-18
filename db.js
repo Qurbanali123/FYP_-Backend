@@ -1,27 +1,28 @@
 import mysql from "mysql2";
 
+// Create pool using DATABASE_URL (recommended)
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  uri: process.env.DATABASE_URL,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 5,
   queueLimit: 0,
   connectTimeout: 10000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
 });
 
-pool.getConnection((err, conn) => {
+// Safe connection test (NO crash)
+pool.getConnection((err, connection) => {
   if (err) {
-    console.error("❌ Database connection failed:", err);
+    console.error("❌ Database connection failed:", err.message);
   } else {
-    console.log("✅ Database connected");
-    conn.release();
+    console.log("✅ Connected to database!");
+    if (connection) connection.release();
   }
 });
 
 export default pool;
+
 
 
 
