@@ -22,7 +22,6 @@ router.post("/forget-password", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM sellers WHERE email = ?", [email]);
 
     if (rows.length === 0)
@@ -31,12 +30,12 @@ router.post("/forget-password", async (req, res) => {
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await db.promise().query(
+    await db.query(
       "DELETE FROM seller_password_reset WHERE email = ?",
       [email]
     );
 
-    await db.promise().query(
+    await db.query(
       "INSERT INTO seller_password_reset (email, otp, otp_expiry) VALUES (?, ?, ?)",
       [email, otp, otpExpiry]
     );
@@ -65,7 +64,6 @@ router.post("/reset-password", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM seller_password_reset WHERE email = ? AND otp = ?", [email, otp]);
 
     if (rows.length === 0)
@@ -78,12 +76,12 @@ router.post("/reset-password", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await db.promise().query(
+    await db.query(
       "UPDATE sellers SET password = ? WHERE email = ?",
       [hashedPassword, email]
     );
 
-    await db.promise().query(
+    await db.query(
       "DELETE FROM seller_password_reset WHERE email = ?",
       [email]
     );
@@ -132,7 +130,7 @@ router.post("/add-product", verifyToken, async (req, res) => {
 
     // Step 3: Store product data in database with crypto token
     console.log("💾 Storing product in database with dual-layer security...");
-    await db.promise().query(
+    await db.query(
       `INSERT INTO products 
        (seller_id, product_id, name, brand, batch_no, expiry_date, crypto_token, token_signature, hidden_qr_nonce, qr_timestamp, qr_version) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -176,7 +174,6 @@ router.get("/my-products", verifyToken, async (req, res) => {
   try {
     const sellerId = req.user.id;
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM products WHERE seller_id = ?", [sellerId]);
 
     res.json(rows);
@@ -199,7 +196,7 @@ router.put("/edit/:product_id", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       `UPDATE products 
        SET name = ?, brand = ?, batch_no = ?, expiry_date = ?
        WHERE product_id = ? AND seller_id = ?`,
@@ -228,7 +225,6 @@ router.delete("/delete/:product_id", verifyToken, async (req, res) => {
     const sellerId = req.user.id;
 
     const [result] = await db
-      .promise()
       .query(
         `DELETE FROM products WHERE product_id = ? AND seller_id = ?`,
         [product_id, sellerId]
@@ -257,7 +253,6 @@ router.get("/verify/:productId", async (req, res) => {
 
     // Step 1: Get product from database with dual-layer security info
     const [rows] = await db
-      .promise()
       .query(
         `SELECT 
           product_id, name, brand, batch_no, expiry_date, 
@@ -337,7 +332,7 @@ router.get("/verify/:productId", async (req, res) => {
     }
 
     // Step 6: Update verification logs
-    await db.promise().query(
+    await db.query(
       `INSERT INTO qr_verification_logs 
        (product_id, visible_layer_detected, hidden_layer_detected, crypto_token_valid, verification_method, result) 
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -353,7 +348,7 @@ router.get("/verify/:productId", async (req, res) => {
 
     // Step 7: Update product verification stats
     if (basicDataMatches) {
-      await db.promise().query(
+      await db.query(
         `UPDATE products 
          SET verification_count = verification_count + 1, 
              last_verified_at = NOW(),
@@ -391,7 +386,7 @@ router.get("/verify/:productId", async (req, res) => {
 // backend: routes/products.js
 router.get("/all", async (req, res) => {
   try {
-    const [rows] = await db.promise().query("SELECT * FROM products");
+    const [rows] = await db.query("SELECT * FROM products");
     res.json({ products: rows });
   } catch (err) {
     res.status(500).json({ message: "Cannot fetch products", error: err });
