@@ -8,16 +8,20 @@ import { sendOTPEmail } from "../utils/email.js";
 
 const router = express.Router();
 
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
+/* ============================
+   UTILITIES
+============================ */
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
-// 🔒 JWT verify middleware
+/* ============================
+   JWT VERIFY MIDDLEWARE
+============================ */
 export const verifyToken = (req, res, next) => {
   const token =
     req.cookies?.token ||
-    (req.headers["authorization"]
-      ? req.headers["authorization"].split(" ")[1]
+    (req.headers.authorization
+      ? req.headers.authorization.split(" ")[1]
       : null);
 
   if (!token) {
@@ -26,200 +30,292 @@ export const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; 
+    req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
+    console.error("❌ JWT error:", err.message);
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
-// 🟩 Seller Registration
+/* ============================
+   SELLER REGISTRATION
+============================ */
 router.post("/register/seller", async (req, res) => {
   const { companyName, ownerName, email, password } = req.body;
 
-  if (!companyName || !ownerName || !email || !password)
+  if (!companyName || !ownerName || !email || !password) {
     return res.status(400).json({ message: "All fields required" });
+  }
 
   try {
-    const [existing] = await db
-      .query("SELECT * FROM sellers WHERE email = ?", [email]);
+    // Check existing seller
+    const [existing] = await db.query(
+      "SELECT id FROM sellers WHERE email = ?",
+      [email]
+    );
 
-    if (existing.length > 0)
+    if (existing.length > 0) {
       return res.status(400).json({ message: "Email already registered" });
+    }
 
     const otp = generateOTP();
     const hashedPassword = await bcrypt.hash(password, 10);
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
+    // Remove old OTPs if any
+    await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
+
+    // Store OTP + hashed password
     await db.query(
-      "INSERT INTO seller_otps (company_name, owner_name, email, otp, otp_expiry, hashed_password) VALUES (?, ?, ?, ?, ?, ?)",
+      `INSERT INTO seller_otps 
+       (company_name, owner_name, email, otp, otp_expiry, hashed_password)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
     );
 
+    // Send OTP email
     const emailSent = await sendOTPEmail(email, otp, "seller");
 
     if (!emailSent) {
+      console.error("❌ OTP email failed for:", email);
       return res.status(500).json({ message: "Failed to send OTP email" });
     }
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: "OTP sent to email. Please verify within 10 minutes.",
-      email 
+      email,
     });
-  } catch (e) {
-    res.status(500).json({ message: "Server error", error: e });
+  } catch (err) {
+    console.error("❌ Seller register error:", err);
+    res.status(500).json({
+      message: "Server error during registration",
+      error: err.message,
+    });
   }
 });
 
-// 🟩 Seller OTP Verification
+/* ============================
+   SELLER OTP VERIFICATION
+============================ */
 router.post("/verify-otp/seller", async (req, res) => {
   const { email, otp } = req.body;
 
-  if (!email || !otp)
+  if (!email || !otp) {
     return res.status(400).json({ message: "Email and OTP required" });
+  }
 
   try {
-    const [rows] = await db
-      .query("SELECT * FROM seller_otps WHERE email = ? AND otp = ?", [email, otp]);
-
-    if (rows.length === 0)
-      return res.status(400).json({ message: "Invalid OTP" });
-
-    const otpRecord = rows[0];
-    
-    if (new Date() > otpRecord.otp_expiry)
-      return res.status(400).json({ message: "OTP expired" });
-
-    await db.query(
-      "INSERT INTO sellers (company_name, owner_name, email, password, status) VALUES (?, ?, ?, ?, ?)",
-      [otpRecord.company_name, otpRecord.owner_name, email, otpRecord.hashed_password, "pending"]
+    const [rows] = await db.query(
+      "SELECT * FROM seller_otps WHERE email = ? AND otp = ?",
+      [email, otp]
     );
 
+    if (rows.length === 0) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    const record = rows[0];
+
+    if (new Date() > record.otp_expiry) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    // Create seller
+    await db.query(
+      `INSERT INTO sellers 
+       (company_name, owner_name, email, password, status)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        record.company_name,
+        record.owner_name,
+        email,
+        record.hashed_password,
+        "pending",
+      ]
+    );
+
+    // Cleanup OTP
     await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
 
-    res.json({ 
+    res.json({
       message: "Email verified. Awaiting admin approval.",
-      email 
+      email,
     });
-  } catch (error) {
-    console.error("❌ OTP verification error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+  } catch (err) {
+    console.error("❌ OTP verification error:", err);
+    res.status(500).json({
+      message: "Server error during OTP verification",
+      error: err.message,
+    });
   }
 });
 
-// 🟩 Seller Login
+/* ============================
+   SELLER LOGIN
+============================ */
 router.post("/login/seller", async (req, res) => {
   const { email, password } = req.body;
 
-  const [rows] = await db
-    .query("SELECT * FROM sellers WHERE email = ?", [email]);
-
-  if (rows.length === 0)
-    return res.status(401).json({ message: "Invalid credentials" });
-
-  const seller = rows[0];
-
-  if (seller.status === "pending")
-    return res.status(403).json({ message: "Your account is pending admin approval" });
-
-  if (seller.status === "rejected" || seller.status === "blocked")
-    return res.status(403).json({ message: "Your account has been rejected or blocked" });
-
-  const ok = await bcrypt.compare(password, seller.password);
-
-  if (!ok) return res.status(401).json({ message: "Invalid credentials" });
-
-  const token = jwt.sign(
-    { id: seller.id, email: seller.email, role: "seller" },
-    process.env.JWT_SECRET,
-    { expiresIn: "2h" }
-  );
-
-  res.cookie("token", token, {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: false
-  });
-
-  res.json({
-    message: "Login successful",
-    token,
-    seller: {
-      id: seller.id,
-      companyName: seller.company_name,
-      ownerName: seller.owner_name,
-      email: seller.email
-    }
-  });
-});
-
-
-// 🟦 CUSTOMER REGISTRATION (New)
-router.post("/register/customer", async (req, res) => {
-  const { name, email, password } = req.body;
-
-  if (!name || !email || !password)
-    return res.status(400).json({ message: "All fields required" });
-
   try {
-    const [existing] = await db
-      .query("SELECT * FROM customers WHERE email = ?", [email]);
+    const [rows] = await db.query(
+      "SELECT * FROM sellers WHERE email = ?",
+      [email]
+    );
 
-    if (existing.length > 0)
-      return res.status(400).json({ message: "Email already registered" });
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const seller = rows[0];
 
-    await db
-      .query(
-        "INSERT INTO customers (name, email, password) VALUES (?, ?, ?)",
-        [name, email, hashed]
-      );
+    if (seller.status !== "approved") {
+      return res.status(403).json({
+        message:
+          seller.status === "pending"
+            ? "Your account is pending admin approval"
+            : "Your account is blocked or rejected",
+      });
+    }
 
-    res.status(201).json({ message: "Customer registered successfully" });
+    const ok = await bcrypt.compare(password, seller.password);
+    if (!ok) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: seller.id, email: seller.email, role: "seller" },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    res.json({
+      message: "Login successful",
+      token,
+      seller: {
+        id: seller.id,
+        companyName: seller.company_name,
+        ownerName: seller.owner_name,
+        email: seller.email,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err });
+    console.error("❌ Seller login error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
 
-// 🟦 CUSTOMER LOGIN (Fix for your 404 error)
+
+
+
+
+/* ============================
+   CUSTOMER REGISTRATION
+============================ */
+router.post("/register/customer", async (req, res) => {
+  const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: "All fields required" });
+  }
+
+  try {
+    const [existing] = await db.query(
+      "SELECT id FROM customers WHERE email = ?",
+      [email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    await db.query(
+      "INSERT INTO customers (name, email, password) VALUES (?, ?, ?)",
+      [name, email, hashed]
+    );
+
+    res.status(201).json({ message: "Customer registered successfully" });
+  } catch (err) {
+    console.error("❌ Customer register error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+/* ============================
+   CUSTOMER LOGIN
+============================ */
 router.post("/login/customer", async (req, res) => {
   const { email, password } = req.body;
 
-  const [rows] = await db
-    .query("SELECT * FROM customers WHERE email = ?", [email]);
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM customers WHERE email = ?",
+      [email]
+    );
 
-  if (rows.length === 0)
-    return res.status(401).json({ message: "Invalid credentials" });
-
-  const customer = rows[0];
-  const ok = await bcrypt.compare(password, customer.password);
-
-  if (!ok)
-    return res.status(401).json({ message: "Invalid credentials" });
-
-  const token = jwt.sign(
-    { id: customer.id, email: customer.email, role: "customer" },
-    process.env.JWT_SECRET,
-    { expiresIn: "2h" }
-  );
-
-  res.cookie("token", token, {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: false
-  });
-
-  res.json({
-    message: "Login successful",
-    token,
-    customer: {
-      id: customer.id,
-      name: customer.name,
-      email: customer.email
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
-  });
+
+    const customer = rows[0];
+    const ok = await bcrypt.compare(password, customer.password);
+
+    if (!ok) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: customer.id, email: customer.email, role: "customer" },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    res.json({
+      message: "Login successful",
+      token,
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Customer login error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ---------------- TEST EMAIL ROUTE ----------------
+router.get("/test-email", async (req, res) => {
+  try {
+    const testEmail = process.env.EMAIL_USER; // send to yourself for testing
+    const testOTP = "123456";                  // sample OTP
+    const result = await sendOTPEmail(testEmail, testOTP, "seller");
+
+    if (result) {
+      res.json({ success: true, message: "Test OTP email sent successfully" });
+    } else {
+      res.status(500).json({ success: false, message: "Failed to send test email" });
+    }
+  } catch (err) {
+    console.error("❌ Test email error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 export default router;

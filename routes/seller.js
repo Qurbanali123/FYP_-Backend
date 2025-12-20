@@ -382,8 +382,8 @@ router.get("/verify/:productId", async (req, res) => {
     res.status(500).json({ message: "Cannot verify product", error: err.message });
   }
 });
-/* =====================================================
-// backend: routes/products.js
+// /* =====================================================
+// // backend: routes/products.js
 router.get("/all", async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM products");
@@ -391,6 +391,6 @@ router.get("/all", async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Cannot fetch products", error: err });
   }
-});/* ===================================================== */
+});
 
 export default router;

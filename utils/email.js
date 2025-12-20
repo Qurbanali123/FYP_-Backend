@@ -3,33 +3,37 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Create transporter using environment variables
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.EMAIL_HOST,           // smtp.gmail.com
+  port: Number(process.env.EMAIL_PORT),   // 587
+  secure: false,                          // true for 465, false for 587
   auth: {
-    user: process.env.ADMIN_EMAIL,
-    pass: process.env.ADMIN_EMAIL_PASS
-  }
+    user: process.env.EMAIL_USER,         // your Gmail
+    pass: process.env.EMAIL_PASS          // Gmail App Password (16 chars)
+  },
 });
 
-export const sendOTPEmail = async (email, otp, userType) => {
+// ---------------- SEND OTP EMAIL ----------------
+export const sendOTPEmail = async (to, otp, userType) => {
   try {
-    const subject = userType === "admin" 
+    const subject = userType === "admin"
       ? "Admin Registration - Verify Your Email with OTP"
       : "Seller Registration - Verify Your Email with OTP";
-    
-    const htmlContent = `
+
+    const html = `
       <h2>Email Verification</h2>
       <p>Your OTP for ${userType} registration is:</p>
-      <h1 style="color: #007bff; letter-spacing: 5px;">${otp}</h1>
+      <h1 style="color:#007bff; letter-spacing:5px;">${otp}</h1>
       <p>This OTP will expire in 10 minutes.</p>
       <p>If you didn't request this, please ignore this email.</p>
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
+      from: process.env.EMAIL_FROM, // Example: "FYP Backend <your_email@gmail.com>"
+      to,
       subject,
-      html: htmlContent
+      html
     });
 
     return true;
@@ -39,69 +43,62 @@ export const sendOTPEmail = async (email, otp, userType) => {
   }
 };
 
+// ---------------- PASSWORD RESET EMAIL ----------------
+export const sendPasswordResetEmail = async (to, otp, userType) => {
+  try {
+    const subject = userType === "admin"
+      ? "Password Reset - Verify with OTP"
+      : "Password Reset Request - Verify with OTP";
+
+    const html = `
+      <h2>Password Reset Request</h2>
+      <p>Your OTP is:</p>
+      <h1 style="color:#007bff; letter-spacing:5px;">${otp}</h1>
+      <p>This OTP will expire in 10 minutes.</p>
+      <p>If you didn't request this, ignore this email.</p>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to,
+      subject,
+      html
+    });
+
+    return true;
+  } catch (error) {
+    console.error("❌ Password reset email error:", error);
+    return false;
+  }
+};
+
+// ---------------- ADMIN APPROVAL EMAIL ----------------
 export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   try {
     const approveLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=approve`;
     const rejectLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=reject`;
 
-    const htmlContent = `
+    const html = `
       <h2>New Admin Registration Request</h2>
-      <p>A new admin has registered and verified their email. Please review their details:</p>
-      <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
-        <tr style="background-color: #f2f2f2;">
-          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Name</strong></td>
-          <td style="padding: 10px; border: 1px solid #ddd;">${newAdminData.name}</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Email</strong></td>
-          <td style="padding: 10px; border: 1px solid #ddd;">${newAdminData.email}</td>
-        </tr>
-      </table>
-      <p style="margin-top: 20px;">
-        <a href="${approveLink}" style="display: inline-block; padding: 10px 20px; margin-right: 10px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
-        <a href="${rejectLink}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
+      <p>A new admin has registered and verified their email:</p>
+      <p><strong>Name:</strong> ${newAdminData.name}</p>
+      <p><strong>Email:</strong> ${newAdminData.email}</p>
+      <p>
+        <a href="${approveLink}" style="background:#28a745;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;margin-right:10px;">Approve</a>
+        <a href="${rejectLink}" style="background:#dc3545;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;">Reject</a>
       </p>
-      <p style="margin-top: 20px;">Or manage approvals in your Admin Dashboard.</p>
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_FROM,
       to: superAdminEmail,
       subject: "New Admin Registration Request",
-      html: htmlContent
+      html
     });
 
     return true;
   } catch (error) {
-    console.error("❌ Email sending error:", error);
-    return false;
-  }
-};
-
-export const sendPasswordResetEmail = async (email, otp, userType) => {
-  try {
-    const subject = userType === "admin" 
-      ? "Password Reset - Verify with OTP"
-      : "Password Reset Request - Verify with OTP";
-    
-    const htmlContent = `
-      <h2>Password Reset Request</h2>
-      <p>You have requested to reset your password. Your OTP is:</p>
-      <h1 style="color: #007bff; letter-spacing: 5px;">${otp}</h1>
-      <p>This OTP will expire in 10 minutes.</p>
-      <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-    `;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject,
-      html: htmlContent
-    });
-
-    return true;
-  } catch (error) {
-    console.error("❌ Email sending error:", error);
+    console.error("❌ Admin approval email error:", error);
     return false;
   }
 };
