@@ -1,4 +1,4 @@
-import mysql from "mysql2";
+import mysql from "mysql2/promise";
 
 // Create pool using DATABASE_URL (recommended)
 const pool = mysql.createPool({
