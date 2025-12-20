@@ -1,15 +1,30 @@
 import mysql from "mysql2/promise";
 
-// Create pool using DATABASE_URL (recommended)
-const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
-  waitForConnections: true,
-  connectionLimit: 5,
-  queueLimit: 0,
-  connectTimeout: 10000,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
-});
+// Create pool using DATABASE_URL (recommended).
+// Guard against missing DATABASE_URL to avoid throwing at import time
+// (which causes serverless function invocation failures).
+let pool;
+if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== "") {
+  pool = mysql.createPool({
+    uri: process.env.DATABASE_URL,
+    waitForConnections: true,
+    connectionLimit: 5,
+    queueLimit: 0,
+    connectTimeout: 10000,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+  });
+} else {
+  // Fallback stub that surface clear runtime errors when DB is accessed.
+  pool = {
+    query: async () => {
+      throw new Error("DATABASE_URL is not set in environment");
+    },
+    getConnection: async () => {
+      throw new Error("DATABASE_URL is not set in environment");
+    },
+  };
+}
 
 export default pool;
 
