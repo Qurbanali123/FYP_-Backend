@@ -42,7 +42,6 @@ router.post("/register/seller", async (req, res) => {
 
   try {
     const [existing] = await db
-      .promise()
       .query("SELECT * FROM sellers WHERE email = ?", [email]);
 
     if (existing.length > 0)
@@ -52,7 +51,7 @@ router.post("/register/seller", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await db.promise().query(
+    await db.query(
       "INSERT INTO seller_otps (company_name, owner_name, email, otp, otp_expiry, hashed_password) VALUES (?, ?, ?, ?, ?, ?)",
       [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
     );
@@ -81,7 +80,6 @@ router.post("/verify-otp/seller", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM seller_otps WHERE email = ? AND otp = ?", [email, otp]);
 
     if (rows.length === 0)
@@ -92,12 +90,12 @@ router.post("/verify-otp/seller", async (req, res) => {
     if (new Date() > otpRecord.otp_expiry)
       return res.status(400).json({ message: "OTP expired" });
 
-    await db.promise().query(
+    await db.query(
       "INSERT INTO sellers (company_name, owner_name, email, password, status) VALUES (?, ?, ?, ?, ?)",
       [otpRecord.company_name, otpRecord.owner_name, email, otpRecord.hashed_password, "pending"]
     );
 
-    await db.promise().query("DELETE FROM seller_otps WHERE email = ?", [email]);
+    await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
 
     res.json({ 
       message: "Email verified. Awaiting admin approval.",
@@ -114,7 +112,6 @@ router.post("/login/seller", async (req, res) => {
   const { email, password } = req.body;
 
   const [rows] = await db
-    .promise()
     .query("SELECT * FROM sellers WHERE email = ?", [email]);
 
   if (rows.length === 0)
@@ -166,7 +163,6 @@ router.post("/register/customer", async (req, res) => {
 
   try {
     const [existing] = await db
-      .promise()
       .query("SELECT * FROM customers WHERE email = ?", [email]);
 
     if (existing.length > 0)
@@ -175,7 +171,6 @@ router.post("/register/customer", async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
 
     await db
-      .promise()
       .query(
         "INSERT INTO customers (name, email, password) VALUES (?, ?, ?)",
         [name, email, hashed]
@@ -193,7 +188,6 @@ router.post("/login/customer", async (req, res) => {
   const { email, password } = req.body;
 
   const [rows] = await db
-    .promise()
     .query("SELECT * FROM customers WHERE email = ?", [email]);
 
   if (rows.length === 0)
