@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import mysql from "mysql2";
-=======
 import mysql from "mysql2/promise";
->>>>>>> restore-old-code
 
 // Create pool using DATABASE_URL (recommended)
 const pool = mysql.createPool({
@@ -15,19 +11,6 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0,
 });
 
-<<<<<<< HEAD
-// Safe connection test (NO crash)
-pool.getConnection((err, connection) => {
-  if (err) {
-    console.error("❌ Database connection failed:", err.message);
-  } else {
-    console.log("✅ Connected to database!");
-    if (connection) connection.release();
-  }
-});
-
-=======
->>>>>>> restore-old-code
 export default pool;
 
 
