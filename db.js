@@ -11,16 +11,6 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0,
 });
 
-// Safe connection test (NO crash)
-pool.getConnection((err, connection) => {
-  if (err) {
-    console.error("❌ Database connection failed:", err.message);
-  } else {
-    console.log("✅ Connected to database!");
-    if (connection) connection.release();
-  }
-});
-
 export default pool;
 
 
