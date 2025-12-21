@@ -302,26 +302,18 @@ router.post("/login/customer", async (req, res) => {
 
 //test email route
 
-import { sendOTPEmail } from "@/utils/email";
-
-export async function GET(req) {
-  const testEmail = process.env.EMAIL_FROM;
+router.get("/test", async (req, res) => { 
+  const testEmail = process.env.EMAIL_USER;
   const testOTP = "123456";
-
   const result = await sendOTPEmail(testEmail, testOTP, "seller");
 
   if (result) {
-    return new Response(JSON.stringify({ success: true, message: "Test OTP sent" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    res.json({ success: true, message: "Test OTP email sent successfully" });
   } else {
-    return new Response(JSON.stringify({ success: false, message: "Failed to send OTP" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    res.status(500).json({ success: false, message: "Failed to send test email" });
   }
-}
+});
+
 
 
 
