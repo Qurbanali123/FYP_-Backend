@@ -300,22 +300,33 @@ router.post("/login/customer", async (req, res) => {
   }
 });
 
-// ---------------- TEST EMAIL ROUTE ----------------
-router.get("/test-email", async (req, res) => {
-  try {
-    const testEmail = process.env.EMAIL_USER; // send to yourself for testing
-    const testOTP = "123456";                  // sample OTP
-    const result = await sendOTPEmail(testEmail, testOTP, "seller");
+//test email route
 
-    if (result) {
-      res.json({ success: true, message: "Test OTP email sent successfully" });
-    } else {
-      res.status(500).json({ success: false, message: "Failed to send test email" });
-    }
-  } catch (err) {
-    console.error("❌ Test email error:", err);
-    res.status(500).json({ success: false, error: err.message });
+import { sendOTPEmail } from "@/utils/email";
+
+export async function GET(req) {
+  const testEmail = process.env.EMAIL_FROM;
+  const testOTP = "123456";
+
+  const result = await sendOTPEmail(testEmail, testOTP, "seller");
+
+  if (result) {
+    return new Response(JSON.stringify({ success: true, message: "Test OTP sent" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } else {
+    return new Response(JSON.stringify({ success: false, message: "Failed to send OTP" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
-});
+}
+
+
+
+
+
+
 
 export default router;
