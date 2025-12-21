@@ -1,17 +1,6 @@
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
+import { Resend } from "resend";
 
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT),
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ---------------- SEND OTP EMAIL ----------------
 export const sendOTPEmail = async (email, otp, userType) => {
@@ -21,8 +10,8 @@ export const sendOTPEmail = async (email, otp, userType) => {
         ? "Admin Registration - Verify Your Email with OTP"
         : "Seller Registration - Verify Your Email with OTP";
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: `Hype2Day <${process.env.EMAIL_FROM}>`,
       to: email,
       subject,
       html: `
@@ -35,7 +24,7 @@ export const sendOTPEmail = async (email, otp, userType) => {
 
     return true;
   } catch (error) {
-    console.error("❌ Email sending error:", error);
+    console.error("❌ Resend OTP email error:", error);
     return false;
   }
 };
@@ -46,8 +35,8 @@ export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
     const approveLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=approve`;
     const rejectLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=reject`;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: `Hype2Day <${process.env.EMAIL_FROM}>`,
       to: superAdminEmail,
       subject: "New Admin Registration Request",
       html: `
@@ -74,8 +63,8 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
         ? "Password Reset - Verify with OTP"
         : "Password Reset Request - Verify with OTP";
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: `Hype2Day <${process.env.EMAIL_FROM}>`,
       to: email,
       subject,
       html: `
@@ -91,5 +80,3 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
     return false;
   }
 };
-
-export default transporter;
