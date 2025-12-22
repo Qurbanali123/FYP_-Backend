@@ -10,7 +10,11 @@ export const sendOTPEmail = async (email, otp, userType) => {
         ? "Admin Registration - Verify Your Email with OTP"
         : "Seller Registration - Verify Your Email with OTP";
 
-    await resend.emails.send({
+    console.log("📧 Attempting to send OTP to:", email);
+    console.log("🔑 API Key exists:", !!process.env.RESEND_API_KEY);
+    console.log("📤 FROM email:", process.env.EMAIL_FROM);
+
+    const response = await resend.emails.send({
       from: `Hype2Day <${process.env.EMAIL_FROM}>`,
       to: email,
       subject,
@@ -22,9 +26,11 @@ export const sendOTPEmail = async (email, otp, userType) => {
       `,
     });
 
+    console.log("✅ Email sent successfully:", response);
     return true;
   } catch (error) {
-    console.error("❌ Resend OTP email error:", error);
+    console.error("❌ Resend OTP email error:", error.message);
+    console.error("❌ Full error:", error);
     return false;
   }
 };
