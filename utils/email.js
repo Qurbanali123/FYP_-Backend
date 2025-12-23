@@ -1,6 +1,16 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend = null;
+
+const getResend = () => {
+  if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not set in environment variables");
+    }
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+};
 
 // ✅ Simple sender (no name)
 const FROM_EMAIL = process.env.EMAIL_FROM;
@@ -21,7 +31,7 @@ export const sendOTPEmail = async (email, otp, userType) => {
     console.log("📧 Sending OTP to:", email);
     console.log("📤 FROM:", FROM_EMAIL);
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,       // ✅ onboarding@resend.dev
       to: [email],            // ✅ array required
       subject,
@@ -50,7 +60,7 @@ export const sendOTPEmail = async (email, otp, userType) => {
 /* ================= ADMIN APPROVAL EMAIL ================= */
 export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   try {
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: [superAdminEmail],
       subject: "New Admin Registration Request",
@@ -82,7 +92,7 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
         ? "Password Reset - Verify with OTP"
         : "Password Reset Request - Verify with OTP";
 
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: [email],
       subject,
