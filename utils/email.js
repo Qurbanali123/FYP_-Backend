@@ -2,66 +2,79 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ---------------- SEND OTP EMAIL ----------------
+// ✅ Simple sender (no name)
+const FROM_EMAIL = process.env.EMAIL_FROM;
+
+/* ================= SEND OTP EMAIL ================= */
 export const sendOTPEmail = async (email, otp, userType) => {
   try {
+    if (!FROM_EMAIL) {
+      console.error("❌ EMAIL_FROM missing in env");
+      return false;
+    }
+
     const subject =
       userType === "admin"
         ? "Admin Registration - Verify Your Email with OTP"
         : "Seller Registration - Verify Your Email with OTP";
 
-    console.log("📧 Attempting to send OTP to:", email);
-    console.log("🔑 API Key exists:", !!process.env.RESEND_API_KEY);
-    console.log("📤 FROM email:", process.env.EMAIL_FROM);
+    console.log("📧 Sending OTP to:", email);
+    console.log("📤 FROM:", FROM_EMAIL);
 
-    const response = await resend.emails.send({
-      from: `Hype2Day <${process.env.EMAIL_FROM}>`,
-      to: email,
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,       // ✅ onboarding@resend.dev
+      to: [email],            // ✅ array required
       subject,
       html: `
         <h2>Email Verification</h2>
-        <p>Your OTP for ${userType} registration is:</p>
-        <h1 style="color:#007bff; letter-spacing:5px;">${otp}</h1>
-        <p>This OTP will expire in 10 minutes.</p>
+        <p>Your OTP for <strong>${userType}</strong> registration is:</p>
+        <h1 style="letter-spacing:5px;">${otp}</h1>
+        <p>This OTP expires in 10 minutes.</p>
       `,
     });
 
-    console.log("✅ Email sent successfully:", response);
+    if (error) {
+      console.error("❌ Resend error:", error);
+      return false;
+    }
+
+    console.log("✅ OTP email sent:", data?.id);
     return true;
+
   } catch (error) {
-    console.error("❌ Resend OTP email error:", error.message);
-    console.error("❌ Full error:", error);
+    console.error("❌ OTP email exception:", error);
     return false;
   }
 };
 
-// ---------------- ADMIN APPROVAL EMAIL ----------------
+/* ================= ADMIN APPROVAL EMAIL ================= */
 export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   try {
-    const approveLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=approve`;
-    const rejectLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=reject`;
-
-    await resend.emails.send({
-      from: `Hype2Day <${process.env.EMAIL_FROM}>`,
-      to: superAdminEmail,
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [superAdminEmail],
       subject: "New Admin Registration Request",
       html: `
         <h2>New Admin Registration Request</h2>
         <p><strong>Name:</strong> ${newAdminData.name}</p>
         <p><strong>Email:</strong> ${newAdminData.email}</p>
-        <a href="${approveLink}">Approve</a> |
-        <a href="${rejectLink}">Reject</a>
+        <p>Please review in admin panel.</p>
       `,
     });
 
+    if (error) {
+      console.error("❌ Admin approval email error:", error);
+      return false;
+    }
+
     return true;
   } catch (error) {
-    console.error("❌ Admin approval email error:", error);
+    console.error("❌ Admin approval email exception:", error);
     return false;
   }
 };
 
-// ---------------- PASSWORD RESET EMAIL ----------------
+/* ================= PASSWORD RESET EMAIL ================= */
 export const sendPasswordResetEmail = async (email, otp, userType) => {
   try {
     const subject =
@@ -69,20 +82,25 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
         ? "Password Reset - Verify with OTP"
         : "Password Reset Request - Verify with OTP";
 
-    await resend.emails.send({
-      from: `Hype2Day <${process.env.EMAIL_FROM}>`,
-      to: email,
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [email],
       subject,
       html: `
         <h2>Password Reset</h2>
         <h1>${otp}</h1>
-        <p>OTP expires in 10 minutes.</p>
+        <p>This OTP expires in 10 minutes.</p>
       `,
     });
 
+    if (error) {
+      console.error("❌ Password reset email error:", error);
+      return false;
+    }
+
     return true;
   } catch (error) {
-    console.error("❌ Password reset email error:", error);
+    console.error("❌ Password reset email exception:", error);
     return false;
   }
 };
