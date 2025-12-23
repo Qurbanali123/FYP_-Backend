@@ -12,16 +12,18 @@ const getResend = () => {
   return resend;
 };
 
-// ✅ Simple sender (no name)
-const FROM_EMAIL = process.env.EMAIL_FROM;
+const getFromEmail = () => {
+  const fromEmail = process.env.EMAIL_FROM;
+  if (!fromEmail) {
+    throw new Error("EMAIL_FROM is not set in environment variables");
+  }
+  return fromEmail;
+};
 
 /* ================= SEND OTP EMAIL ================= */
 export const sendOTPEmail = async (email, otp, userType) => {
   try {
-    if (!FROM_EMAIL) {
-      console.error("❌ EMAIL_FROM missing in env");
-      return false;
-    }
+    const fromEmail = getFromEmail();
 
     const subject =
       userType === "admin"
@@ -29,10 +31,10 @@ export const sendOTPEmail = async (email, otp, userType) => {
         : "Seller Registration - Verify Your Email with OTP";
 
     console.log("📧 Sending OTP to:", email);
-    console.log("📤 FROM:", FROM_EMAIL);
+    console.log("📤 FROM:", fromEmail);
 
     const { data, error } = await getResend().emails.send({
-      from: FROM_EMAIL,       // ✅ onboarding@resend.dev
+      from: fromEmail,       // ✅ onboarding@resend.dev
       to: [email],            // ✅ array required
       subject,
       html: `
@@ -60,8 +62,9 @@ export const sendOTPEmail = async (email, otp, userType) => {
 /* ================= ADMIN APPROVAL EMAIL ================= */
 export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   try {
+    const fromEmail = getFromEmail();
     const { error } = await getResend().emails.send({
-      from: FROM_EMAIL,
+      from: fromEmail,
       to: [superAdminEmail],
       subject: "New Admin Registration Request",
       html: `
@@ -87,13 +90,14 @@ export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
 /* ================= PASSWORD RESET EMAIL ================= */
 export const sendPasswordResetEmail = async (email, otp, userType) => {
   try {
+    const fromEmail = getFromEmail();
     const subject =
       userType === "admin"
         ? "Password Reset - Verify with OTP"
         : "Password Reset Request - Verify with OTP";
 
     const { error } = await getResend().emails.send({
-      from: FROM_EMAIL,
+      from: fromEmail,
       to: [email],
       subject,
       html: `
