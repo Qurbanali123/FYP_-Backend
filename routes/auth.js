@@ -114,6 +114,7 @@ router.post("/verify-otp/seller", async (req, res) => {
     if (rows.length === 0) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
+    
 
     const record = rows[0];
 
