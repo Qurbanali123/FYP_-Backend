@@ -92,6 +92,46 @@ router.post("/register/seller", async (req, res) => {
 });
 
 /* ============================
+   TEST OTP EMAIL ROUTE
+============================ */
+router.get("/test-otp", async (req, res) => {
+  try {
+    // Get test email from query param or environment variable
+    const testEmail = req.query.email || "qurbanaliatish@gmail.com";
+    if (!testEmail) {
+      return res.status(400).json({ message: "Test email is required" });
+    }
+
+    // Generate a test OTP
+    const testOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Send OTP email using your existing function
+    const emailSent = await sendOTPEmail(testEmail, testOTP, "seller");
+
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send test OTP email",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Test OTP sent successfully to ${testEmail}`,
+      otp: testOTP, // optional: show OTP for testing
+    });
+  } catch (err) {
+    console.error("❌ Test OTP error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error while sending test OTP",
+      error: err.message,
+    });
+  }
+});
+
+
+/* ============================
    SELLER OTP VERIFICATION
 ============================ */
 router.post("/verify-otp/seller", async (req, res) => {
