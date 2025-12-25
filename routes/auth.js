@@ -4,7 +4,7 @@ import express from "express";
 import db from "../db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { sendOTPEmail } from "../utils/email.js";
+// import { sendOTPEmail } from "../utils/email.js";
 
 const router = express.Router();
 
@@ -75,7 +75,7 @@ router.post("/register/seller", async (req, res) => {
 
     if (!emailSent) {
       console.error("❌ OTP email failed for:", email);
-      return res.status(500).json({ message: "Failed to send OTP email please try again later." });
+      return res.status(500).json({ message: "Test Failed to send OTP email please try again later." });
     }
 
     res.status(201).json({
@@ -92,33 +92,34 @@ router.post("/register/seller", async (req, res) => {
 });
 
 /* ============================
-   TEST OTP EMAIL ROUTE
+   TEST OTP EMAIL ROUTE (Debug)
 ============================ */
 router.get("/test-otp", async (req, res) => {
   try {
-    // Get test email from query param or environment variable
-    const testEmail = req.query.email || "qurbanaliatish@gmail.com";
+    const testEmail = req.query.email || process.env.EMAIL_USER;
     if (!testEmail) {
-      return res.status(400).json({ message: "Test email is required" });
+      return res.status(400).json({ message: "Test email required" });
     }
 
-    // Generate a test OTP
     const testOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log("📧 Attempting to send test OTP:", testOTP, "to", testEmail);
 
-    // Send OTP email using your existing function
     const emailSent = await sendOTPEmail(testEmail, testOTP, "seller");
 
     if (!emailSent) {
+      console.error("❌ Failed to send test OTP to:", testEmail);
       return res.status(500).json({
         success: false,
-        message: "Failed to send test OTP email",
+        message: "Failed to send test OTP email. Check API key & sender.",
       });
     }
+
+    console.log("✅ Test OTP sent successfully to:", testEmail);
 
     res.json({
       success: true,
       message: `Test OTP sent successfully to ${testEmail}`,
-      otp: testOTP, // optional: show OTP for testing
+      otp: testOTP, // show OTP for debugging
     });
   } catch (err) {
     console.error("❌ Test OTP error:", err);
