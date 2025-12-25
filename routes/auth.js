@@ -41,55 +41,55 @@ export const verifyToken = (req, res, next) => {
 /* ============================
    SELLER REGISTRATION
 ============================ */
-router.post("/register/seller", async (req, res) => {
-  const { companyName, ownerName, email, password } = req.body;
+//  router.post("/register/seller", async (req, res) => {
+//   const { companyName, ownerName, email, password } = req.body;
 
-  if (!companyName || !ownerName || !email || !password) {
-    return res.status(400).json({ message: "All fields required" });
-  }
+//   if (!companyName || !ownerName || !email || !password) {
+//     return res.status(400).json({ message: "All fields required" });
+//   }
 
-  try {
-    const [existing] = await db.query(
-      "SELECT id FROM sellers WHERE email = ?",
-      [email]
-    );
+//   try {
+//     const [existing] = await db.query(
+//       "SELECT id FROM sellers WHERE email = ?",
+//       [email]
+//     );
 
-    if (existing.length > 0) {
-      return res.status(400).json({ message: "Email already registered" });
-    }
+//     if (existing.length > 0) {
+//       return res.status(400).json({ message: "Email already registered" });
+//     }
 
-    const otp = generateOTP();
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+//     const otp = generateOTP();
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
+//     await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
 
-    await db.query(
-      `INSERT INTO seller_otps 
-       (company_name, owner_name, email, otp, otp_expiry, hashed_password)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
-    );
+//     await db.query(
+//       `INSERT INTO seller_otps 
+//        (company_name, owner_name, email, otp, otp_expiry, hashed_password)
+//        VALUES (?, ?, ?, ?, ?, ?)`,
+//       [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
+//     );
 
-    const emailSent = await sendOTPEmail(email, otp, "seller");
+//     const emailSent = await sendOTPEmail(email, otp, "seller");
 
-    if (!emailSent) {
-      console.error("❌ OTP email failed for:", email);
-      return res.status(500).json({ message: "Test Failed to send OTP email please try again later." });
-    }
+//     if (!emailSent) {
+//       console.error("❌ OTP email failed for:", email);
+//       return res.status(500).json({ message: "Test Failed to send OTP email please try again later." });
+//     }
 
-    res.status(201).json({
-      message: "OTP sent to email. Please verify within 10 minutes.",
-      email,
-    });
-  } catch (err) {
-    console.error("❌ Seller register error:", err);
-    res.status(500).json({
-      message: "Server error during registration",
-      error: err.message,
-    });
-  }
-});
+//     res.status(201).json({
+//       message: "OTP sent to email. Please verify within 10 minutes.",
+//       email,
+//     });
+//   } catch (err) {
+//     console.error("❌ Seller register error:", err);
+//     res.status(500).json({
+//       message: "Server error during registration",
+//       error: err.message,
+//     });
+//   }
+// });
 
 /* ============================
    TEST OTP EMAIL ROUTE (Debug)
