@@ -75,7 +75,7 @@ router.post("/register/seller", async (req, res) => {
 
     if (!emailSent) {
       console.error("❌ OTP email failed for:", email);
-      return res.status(500).json({ message: "Failed to send OTP email" });
+      return res.status(500).json({ message: "Failed to send OTP email please try again later." });
     }
 
     res.status(201).json({
