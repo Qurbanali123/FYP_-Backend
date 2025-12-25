@@ -49,7 +49,6 @@ router.post("/register/seller", async (req, res) => {
   }
 
   try {
-    // Check existing seller
     const [existing] = await db.query(
       "SELECT id FROM sellers WHERE email = ?",
       [email]
@@ -63,10 +62,8 @@ router.post("/register/seller", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Remove old OTPs if any
     await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
 
-    // Store OTP + hashed password
     await db.query(
       `INSERT INTO seller_otps 
        (company_name, owner_name, email, otp, otp_expiry, hashed_password)
@@ -74,7 +71,6 @@ router.post("/register/seller", async (req, res) => {
       [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
     );
 
-    // Send OTP email
     const emailSent = await sendOTPEmail(email, otp, "seller");
 
     if (!emailSent) {
@@ -114,7 +110,6 @@ router.post("/verify-otp/seller", async (req, res) => {
     if (rows.length === 0) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
-    
 
     const record = rows[0];
 
@@ -122,7 +117,6 @@ router.post("/verify-otp/seller", async (req, res) => {
       return res.status(400).json({ message: "OTP expired" });
     }
 
-    // Create seller
     await db.query(
       `INSERT INTO sellers 
        (company_name, owner_name, email, password, status)
@@ -136,7 +130,6 @@ router.post("/verify-otp/seller", async (req, res) => {
       ]
     );
 
-    // Cleanup OTP
     await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
 
     res.json({
@@ -211,11 +204,6 @@ router.post("/login/seller", async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
-
-
-
-
 
 /* ============================
    CUSTOMER REGISTRATION
@@ -301,8 +289,9 @@ router.post("/login/customer", async (req, res) => {
   }
 });
 
-//test email route
-
+/* ============================
+   TEST EMAIL ROUTE
+============================ */
 router.get("/test", async (req, res) => { 
   const testEmail = process.env.EMAIL_USER;
   const testOTP = "123456";
@@ -314,12 +303,5 @@ router.get("/test", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to send test email" });
   }
 });
-
-
-
-
-
-
-
 
 export default router;
