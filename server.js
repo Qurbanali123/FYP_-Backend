@@ -32,7 +32,7 @@ app.use(bodyParser.json());
 
 // CORS configuration
 const allowedOrigins = [
-  "https://fyp-frontend-iota-five.vercel.app/",
+  "https://fyp-frontend-iota-five.vercel.app",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
