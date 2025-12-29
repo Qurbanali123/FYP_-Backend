@@ -14,11 +14,16 @@ const generateOTP = () => {
 
 // 🔒 JWT verify middleware
 export const verifyToken = (req, res, next) => {
-  const token =
-    req.cookies?.token ||
-    (req.headers["authorization"]
-      ? req.headers["authorization"].split(" ")[1]
-      : null);
+  let token = req.cookies?.token;
+
+  if (!token && req.headers["authorization"]) {
+    const authHeader = req.headers["authorization"];
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else {
+      token = authHeader;
+    }
+  }
 
   if (!token) {
     return res.status(401).json({ message: "No token provided" });
@@ -29,6 +34,7 @@ export const verifyToken = (req, res, next) => {
     req.user = decoded; 
     next();
   } catch (err) {
+    console.error("Token verification error:", err.message);
     return res.status(401).json({ message: "Invalid token" });
   }
 };
@@ -137,8 +143,8 @@ router.post("/login/seller", async (req, res) => {
 
   res.cookie("token", token, {
     httpOnly: true,
-    sameSite: "strict",
-    secure: false
+    sameSite: "none",
+    secure: true,
   });
 
   res.json({
@@ -207,8 +213,8 @@ router.post("/login/customer", async (req, res) => {
 
   res.cookie("token", token, {
     httpOnly: true,
-    sameSite: "strict",
-    secure: false
+    sameSite: "none",
+    secure: true,
   });
 
   res.json({

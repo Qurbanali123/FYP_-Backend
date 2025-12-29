@@ -20,7 +20,6 @@ router.post("/register", async (req, res) => {
 
   try {
     const [existing] = await db
-      .promise()
       .query("SELECT * FROM admins WHERE email = ?", [email]);
 
     if (existing.length > 0)
@@ -30,7 +29,7 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await db.promise().query(
+    await db.query(
       "INSERT INTO admin_otps (email, otp, otp_expiry, hashed_password) VALUES (?, ?, ?, ?)",
       [email, otp, otpExpiry, hashedPassword]
     );
@@ -59,7 +58,6 @@ router.post("/verify-otp", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM admin_otps WHERE email = ? AND otp = ?", [email, otp]);
 
     if (rows.length === 0)
@@ -72,18 +70,18 @@ router.post("/verify-otp", async (req, res) => {
 
     const name = email.split("@")[0];
     
-    await db.promise().query(
+    await db.query(
       "INSERT INTO admins (name, email, password, status) VALUES (?, ?, ?, ?)",
       [name, email, otpRecord.hashed_password, "pending"]
     );
 
-    await db.promise().query("DELETE FROM admin_otps WHERE email = ?", [email]);
+    await db.query("DELETE FROM admin_otps WHERE email = ?", [email]);
 
     const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
     
     if (superAdminEmail) {
       const [newAdmin] = await db
-        .promise()
+        
         .query("SELECT id, name, email FROM admins WHERE email = ?", [email]);
       
       if (newAdmin.length > 0) {
@@ -106,7 +104,6 @@ router.post("/login", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM admins WHERE email = ?", [email]);
 
     if (rows.length === 0)
@@ -133,8 +130,8 @@ router.post("/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      sameSite: "strict",
-      secure: false
+      sameSite: "none",
+      secure: true,
     });
 
     res.json({
@@ -159,7 +156,6 @@ router.get("/sellers", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
 
     const [sellers] = await db
-      .promise()
       .query("SELECT id, company_name, owner_name, email, status, created_at FROM sellers ORDER BY created_at DESC");
 
     res.json({ sellers });
@@ -176,7 +172,7 @@ router.put("/sellers/:id/approve", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "UPDATE sellers SET status = ? WHERE id = ?",
       ["approved", id]
     );
@@ -198,7 +194,7 @@ router.put("/sellers/:id/reject", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "UPDATE sellers SET status = ? WHERE id = ?",
       ["rejected", id]
     );
@@ -220,7 +216,7 @@ router.put("/sellers/:id/block", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "UPDATE sellers SET status = ? WHERE id = ?",
       ["blocked", id]
     );
@@ -242,7 +238,7 @@ router.delete("/sellers/:id", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "DELETE FROM sellers WHERE id = ?",
       [id]
     );
@@ -263,7 +259,6 @@ router.get("/pending-admins", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
 
     const [admins] = await db
-      .promise()
       .query("SELECT id, name, email, status, created_at FROM admins WHERE status IN ('pending', 'rejected', 'blocked') OR id != ? ORDER BY created_at DESC", [req.user.id]);
 
     res.json({ admins });
@@ -279,7 +274,6 @@ router.get("/all-admins", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
 
     const [admins] = await db
-      .promise()
       .query("SELECT id, name, email, status, created_at FROM admins ORDER BY created_at DESC");
 
     res.json({ admins });
@@ -296,7 +290,7 @@ router.put("/admins/:id/approve", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "UPDATE admins SET status = ? WHERE id = ?",
       ["approved", id]
     );
@@ -318,7 +312,7 @@ router.put("/admins/:id/reject", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "UPDATE admins SET status = ? WHERE id = ?",
       ["rejected", id]
     );
@@ -340,7 +334,7 @@ router.put("/admins/:id/block", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "UPDATE admins SET status = ? WHERE id = ?",
       ["blocked", id]
     );
@@ -362,7 +356,7 @@ router.delete("/admins/:id", verifyToken, async (req, res) => {
 
     const { id } = req.params;
 
-    const [result] = await db.promise().query(
+    const [result] = await db.query(
       "DELETE FROM admins WHERE id = ?",
       [id]
     );
@@ -385,7 +379,6 @@ router.post("/forget-password", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM admins WHERE email = ?", [email]);
 
     if (rows.length === 0)
@@ -394,12 +387,12 @@ router.post("/forget-password", async (req, res) => {
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await db.promise().query(
+    await db.query(
       "DELETE FROM admin_password_reset WHERE email = ?",
       [email]
     );
 
-    await db.promise().query(
+    await db.query(
       "INSERT INTO admin_password_reset (email, otp, otp_expiry) VALUES (?, ?, ?)",
       [email, otp, otpExpiry]
     );
@@ -428,7 +421,6 @@ router.post("/reset-password", async (req, res) => {
 
   try {
     const [rows] = await db
-      .promise()
       .query("SELECT * FROM admin_password_reset WHERE email = ? AND otp = ?", [email, otp]);
 
     if (rows.length === 0)
@@ -441,12 +433,12 @@ router.post("/reset-password", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await db.promise().query(
+    await db.query(
       "UPDATE admins SET password = ? WHERE email = ?",
       [hashedPassword, email]
     );
 
-    await db.promise().query(
+    await db.query(
       "DELETE FROM admin_password_reset WHERE email = ?",
       [email]
     );

@@ -1,6 +1,6 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 
@@ -8,8 +8,6 @@ import authRoutes from "./routes/auth.js";
 import sellerRoutes from "./routes/seller.js";
 import adminRoutes from "./routes/admin.js";
 import db from "./db.js";
-
-dotenv.config();
 
 const app = express();
 
