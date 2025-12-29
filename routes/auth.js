@@ -4,10 +4,11 @@ import express from "express";
 import db from "../db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { sendOTPEmail } from "../utils/email.js";
+import { sendOTPEmail } from "../utils/email.js"; // MailerSend version
 
 const router = express.Router();
 
+// 🔹 Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -47,8 +48,10 @@ router.post("/register/seller", async (req, res) => {
     return res.status(400).json({ message: "All fields required" });
 
   try {
-    const [existing] = await db
-      .query("SELECT * FROM sellers WHERE email = ?", [email]);
+    const [existing] = await db.query(
+      "SELECT * FROM sellers WHERE email = ?", 
+      [email]
+    );
 
     if (existing.length > 0)
       return res.status(400).json({ message: "Email already registered" });
@@ -62,6 +65,7 @@ router.post("/register/seller", async (req, res) => {
       [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
     );
 
+    // 🔹 Send OTP using MailerSend
     const emailSent = await sendOTPEmail(email, otp, "seller");
 
     if (!emailSent) {
@@ -73,6 +77,7 @@ router.post("/register/seller", async (req, res) => {
       email 
     });
   } catch (e) {
+    console.error("❌ Seller registration error:", e);
     res.status(500).json({ message: "Server error", error: e });
   }
 });
@@ -85,14 +90,16 @@ router.post("/verify-otp/seller", async (req, res) => {
     return res.status(400).json({ message: "Email and OTP required" });
 
   try {
-    const [rows] = await db
-      .query("SELECT * FROM seller_otps WHERE email = ? AND otp = ?", [email, otp]);
+    const [rows] = await db.query(
+      "SELECT * FROM seller_otps WHERE email = ? AND otp = ?", 
+      [email, otp]
+    );
 
     if (rows.length === 0)
       return res.status(400).json({ message: "Invalid OTP" });
 
     const otpRecord = rows[0];
-    
+
     if (new Date() > otpRecord.otp_expiry)
       return res.status(400).json({ message: "OTP expired" });
 
@@ -117,8 +124,10 @@ router.post("/verify-otp/seller", async (req, res) => {
 router.post("/login/seller", async (req, res) => {
   const { email, password } = req.body;
 
-  const [rows] = await db
-    .query("SELECT * FROM sellers WHERE email = ?", [email]);
+  const [rows] = await db.query(
+    "SELECT * FROM sellers WHERE email = ?", 
+    [email]
+  );
 
   if (rows.length === 0)
     return res.status(401).json({ message: "Invalid credentials" });
@@ -159,8 +168,7 @@ router.post("/login/seller", async (req, res) => {
   });
 });
 
-
-// 🟦 CUSTOMER REGISTRATION (New)
+// 🟦 Customer Registration
 router.post("/register/customer", async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -168,33 +176,36 @@ router.post("/register/customer", async (req, res) => {
     return res.status(400).json({ message: "All fields required" });
 
   try {
-    const [existing] = await db
-      .query("SELECT * FROM customers WHERE email = ?", [email]);
+    const [existing] = await db.query(
+      "SELECT * FROM customers WHERE email = ?", 
+      [email]
+    );
 
     if (existing.length > 0)
       return res.status(400).json({ message: "Email already registered" });
 
     const hashed = await bcrypt.hash(password, 10);
 
-    await db
-      .query(
-        "INSERT INTO customers (name, email, password) VALUES (?, ?, ?)",
-        [name, email, hashed]
-      );
+    await db.query(
+      "INSERT INTO customers (name, email, password) VALUES (?, ?, ?)",
+      [name, email, hashed]
+    );
 
     res.status(201).json({ message: "Customer registered successfully" });
   } catch (err) {
+    console.error("❌ Customer registration error:", err);
     res.status(500).json({ message: "Server error", error: err });
   }
 });
 
-
-// 🟦 CUSTOMER LOGIN (Fix for your 404 error)
+// 🟦 Customer Login
 router.post("/login/customer", async (req, res) => {
   const { email, password } = req.body;
 
-  const [rows] = await db
-    .query("SELECT * FROM customers WHERE email = ?", [email]);
+  const [rows] = await db.query(
+    "SELECT * FROM customers WHERE email = ?", 
+    [email]
+  );
 
   if (rows.length === 0)
     return res.status(401).json({ message: "Invalid credentials" });

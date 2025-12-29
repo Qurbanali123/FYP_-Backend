@@ -1,22 +1,22 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
+import 'dotenv/config';
+import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
 
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.ADMIN_EMAIL,
-    pass: process.env.ADMIN_EMAIL_PASS
-  }
+// Initialize MailerSend
+const mailerSend = new MailerSend({
+  apiKey: process.env.MAILERSEND_API_KEY
 });
 
+// Test domain sender
+const TEST_SENDER_EMAIL = "no-reply@test-3m5jgroqke0gdpyo.mlsender.net"; //test-3m5jgroqke0gdpyo.mlsender.net
+const APP_NAME = "My App"; // change to your app name
+
+// Send OTP Email
 export const sendOTPEmail = async (email, otp, userType) => {
   try {
     const subject = userType === "admin" 
       ? "Admin Registration - Verify Your Email with OTP"
       : "Seller Registration - Verify Your Email with OTP";
-    
+
     const htmlContent = `
       <h2>Email Verification</h2>
       <p>Your OTP for ${userType} registration is:</p>
@@ -25,13 +25,15 @@ export const sendOTPEmail = async (email, otp, userType) => {
       <p>If you didn't request this, please ignore this email.</p>
     `;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject,
-      html: htmlContent
-    });
+    const sentFrom = new Sender(TEST_SENDER_EMAIL, APP_NAME);
+    const recipients = [new Recipient(email)];
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setSubject(subject)
+      .setHtml(htmlContent);
 
+    await mailerSend.email.send(emailParams);
     return true;
   } catch (error) {
     console.error("❌ Email sending error:", error);
@@ -39,6 +41,7 @@ export const sendOTPEmail = async (email, otp, userType) => {
   }
 };
 
+// Send Admin Approval Email
 export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   try {
     const approveLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=approve`;
@@ -64,13 +67,15 @@ export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
       <p style="margin-top: 20px;">Or manage approvals in your Admin Dashboard.</p>
     `;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: superAdminEmail,
-      subject: "New Admin Registration Request",
-      html: htmlContent
-    });
+    const sentFrom = new Sender(TEST_SENDER_EMAIL, APP_NAME);
+    const recipients = [new Recipient(superAdminEmail)];
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setSubject("New Admin Registration Request")
+      .setHtml(htmlContent);
 
+    await mailerSend.email.send(emailParams);
     return true;
   } catch (error) {
     console.error("❌ Email sending error:", error);
@@ -78,12 +83,13 @@ export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   }
 };
 
+// Send Password Reset Email
 export const sendPasswordResetEmail = async (email, otp, userType) => {
   try {
     const subject = userType === "admin" 
       ? "Password Reset - Verify with OTP"
       : "Password Reset Request - Verify with OTP";
-    
+
     const htmlContent = `
       <h2>Password Reset Request</h2>
       <p>You have requested to reset your password. Your OTP is:</p>
@@ -92,13 +98,15 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
       <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
     `;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject,
-      html: htmlContent
-    });
+    const sentFrom = new Sender(TEST_SENDER_EMAIL, APP_NAME);
+    const recipients = [new Recipient(email)];
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setSubject(subject)
+      .setHtml(htmlContent);
 
+    await mailerSend.email.send(emailParams);
     return true;
   } catch (error) {
     console.error("❌ Email sending error:", error);
@@ -106,4 +114,4 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
   }
 };
 
-export default transporter;
+export default mailerSend;
