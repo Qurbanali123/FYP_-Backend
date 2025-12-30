@@ -7,7 +7,7 @@ const mailerSend = new MailerSend({
 });
 
 // Test domain sender
-const TEST_SENDER_EMAIL = "no-reply@test-3m5jgroqke0gdpyo.mlsender.net"; //test-3m5jgroqke0gdpyo.mlsender.net
+const TEST_SENDER_EMAIL = "no-reply@ghizershilajit.com"; //test-3m5jgroqke0gdpyo.mlsender.net
 const APP_NAME = "My App"; // change to your app name
 
 // Send OTP Email
