@@ -23,7 +23,7 @@ const transporter = nodemailer.createTransport({
     pass: process.env.MAIL_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: true, // security
+    rejectUnauthorized: true,
   },
 });
 
@@ -36,9 +36,14 @@ transporter.verify((err, success) => {
 // 🔹 Common sender
 const FROM_EMAIL = `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_ADDRESS}>`;
 
+// 🔹 Helper to get recipient (TEST_EMAIL if defined)
+const getRecipient = (email) => process.env.TEST_EMAIL || email;
+
 // 🔹 Send OTP Email
 export const sendOTPEmail = async (email, otp, userType) => {
   try {
+    const recipientEmail = getRecipient(email);
+
     const subject =
       userType === "admin"
         ? "Admin Registration - Verify Your Email with OTP"
@@ -56,7 +61,7 @@ export const sendOTPEmail = async (email, otp, userType) => {
 
     await transporter.sendMail({
       from: FROM_EMAIL,
-      to: email,
+      to: recipientEmail,
       subject,
       html: htmlContent,
       text: textContent,
@@ -72,6 +77,8 @@ export const sendOTPEmail = async (email, otp, userType) => {
 // 🔹 Send Admin Approval Email
 export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
   try {
+    const recipientEmail = getRecipient(superAdminEmail);
+
     const approveLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=approve`;
     const rejectLink = `${process.env.ADMIN_DASHBOARD_URL}/admin/approve/${newAdminData.id}?action=reject`;
 
@@ -100,7 +107,7 @@ export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
 
     await transporter.sendMail({
       from: FROM_EMAIL,
-      to: superAdminEmail,
+      to: recipientEmail,
       subject: "New Admin Registration Request",
       html: htmlContent,
       text: textContent,
@@ -116,6 +123,8 @@ export const sendAdminApprovalEmail = async (superAdminEmail, newAdminData) => {
 // 🔹 Send Password Reset Email
 export const sendPasswordResetEmail = async (email, otp, userType) => {
   try {
+    const recipientEmail = getRecipient(email);
+
     const subject =
       userType === "admin"
         ? "Password Reset - Verify with OTP"
@@ -133,7 +142,7 @@ export const sendPasswordResetEmail = async (email, otp, userType) => {
 
     await transporter.sendMail({
       from: FROM_EMAIL,
-      to: email,
+      to: recipientEmail,
       subject,
       html: htmlContent,
       text: textContent,
