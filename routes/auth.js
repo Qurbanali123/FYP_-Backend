@@ -4,7 +4,7 @@ import express from "express";
 import db from "../db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { sendOTPEmail } from "../utils/email.js"; // MailerSend version
+import { sendOTPEmail } from "../utils/email.js"; // ✅ Mailtrap (Nodemailer) version
 
 const router = express.Router();
 
@@ -19,11 +19,9 @@ export const verifyToken = (req, res, next) => {
 
   if (!token && req.headers["authorization"]) {
     const authHeader = req.headers["authorization"];
-    if (authHeader.startsWith("Bearer ")) {
-      token = authHeader.split(" ")[1];
-    } else {
-      token = authHeader;
-    }
+    token = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : authHeader;
   }
 
   if (!token) {
@@ -32,10 +30,10 @@ export const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; 
+    req.user = decoded;
     next();
   } catch (err) {
-    console.error("Token verification error:", err.message);
+    console.error("❌ Token verification error:", err.message);
     return res.status(401).json({ message: "Invalid token" });
   }
 };
@@ -44,41 +42,45 @@ export const verifyToken = (req, res, next) => {
 router.post("/register/seller", async (req, res) => {
   const { companyName, ownerName, email, password } = req.body;
 
-  if (!companyName || !ownerName || !email || !password)
+  if (!companyName || !ownerName || !email || !password) {
     return res.status(400).json({ message: "All fields required" });
+  }
 
   try {
     const [existing] = await db.query(
-      "SELECT * FROM sellers WHERE email = ?", 
+      "SELECT id FROM sellers WHERE email = ?",
       [email]
     );
 
-    if (existing.length > 0)
+    if (existing.length > 0) {
       return res.status(400).json({ message: "Email already registered" });
+    }
 
     const otp = generateOTP();
     const hashedPassword = await bcrypt.hash(password, 10);
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     await db.query(
-      "INSERT INTO seller_otps (company_name, owner_name, email, otp, otp_expiry, hashed_password) VALUES (?, ?, ?, ?, ?, ?)",
+      `INSERT INTO seller_otps 
+      (company_name, owner_name, email, otp, otp_expiry, hashed_password)
+      VALUES (?, ?, ?, ?, ?, ?)`,
       [companyName, ownerName, email, otp, otpExpiry, hashedPassword]
     );
 
-    // 🔹 Send OTP using MailerSend
+    // 📧 Send OTP (Mailtrap SMTP)
     const emailSent = await sendOTPEmail(email, otp, "seller");
 
     if (!emailSent) {
       return res.status(500).json({ message: "Failed to send OTP email" });
     }
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: "OTP sent to email. Please verify within 10 minutes.",
-      email 
+      email,
     });
   } catch (e) {
     console.error("❌ Seller registration error:", e);
-    res.status(500).json({ message: "Server error", error: e });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -86,37 +88,48 @@ router.post("/register/seller", async (req, res) => {
 router.post("/verify-otp/seller", async (req, res) => {
   const { email, otp } = req.body;
 
-  if (!email || !otp)
+  if (!email || !otp) {
     return res.status(400).json({ message: "Email and OTP required" });
+  }
 
   try {
     const [rows] = await db.query(
-      "SELECT * FROM seller_otps WHERE email = ? AND otp = ?", 
+      "SELECT * FROM seller_otps WHERE email = ? AND otp = ?",
       [email, otp]
     );
 
-    if (rows.length === 0)
+    if (rows.length === 0) {
       return res.status(400).json({ message: "Invalid OTP" });
+    }
 
     const otpRecord = rows[0];
 
-    if (new Date() > otpRecord.otp_expiry)
+    if (new Date() > otpRecord.otp_expiry) {
       return res.status(400).json({ message: "OTP expired" });
+    }
 
     await db.query(
-      "INSERT INTO sellers (company_name, owner_name, email, password, status) VALUES (?, ?, ?, ?, ?)",
-      [otpRecord.company_name, otpRecord.owner_name, email, otpRecord.hashed_password, "pending"]
+      `INSERT INTO sellers 
+      (company_name, owner_name, email, password, status)
+      VALUES (?, ?, ?, ?, ?)`,
+      [
+        otpRecord.company_name,
+        otpRecord.owner_name,
+        email,
+        otpRecord.hashed_password,
+        "pending",
+      ]
     );
 
     await db.query("DELETE FROM seller_otps WHERE email = ?", [email]);
 
-    res.json({ 
+    res.json({
       message: "Email verified. Awaiting admin approval.",
-      email 
+      email,
     });
   } catch (error) {
     console.error("❌ OTP verification error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -125,24 +138,28 @@ router.post("/login/seller", async (req, res) => {
   const { email, password } = req.body;
 
   const [rows] = await db.query(
-    "SELECT * FROM sellers WHERE email = ?", 
+    "SELECT * FROM sellers WHERE email = ?",
     [email]
   );
 
-  if (rows.length === 0)
+  if (rows.length === 0) {
     return res.status(401).json({ message: "Invalid credentials" });
+  }
 
   const seller = rows[0];
 
-  if (seller.status === "pending")
-    return res.status(403).json({ message: "Your account is pending admin approval" });
+  if (seller.status === "pending") {
+    return res.status(403).json({ message: "Account pending admin approval" });
+  }
 
-  if (seller.status === "rejected" || seller.status === "blocked")
-    return res.status(403).json({ message: "Your account has been rejected or blocked" });
+  if (seller.status === "rejected" || seller.status === "blocked") {
+    return res.status(403).json({ message: "Account rejected or blocked" });
+  }
 
   const ok = await bcrypt.compare(password, seller.password);
-
-  if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+  if (!ok) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
 
   const token = jwt.sign(
     { id: seller.id, email: seller.email, role: "seller" },
@@ -163,8 +180,8 @@ router.post("/login/seller", async (req, res) => {
       id: seller.id,
       companyName: seller.company_name,
       ownerName: seller.owner_name,
-      email: seller.email
-    }
+      email: seller.email,
+    },
   });
 });
 
@@ -172,17 +189,19 @@ router.post("/login/seller", async (req, res) => {
 router.post("/register/customer", async (req, res) => {
   const { name, email, password } = req.body;
 
-  if (!name || !email || !password)
+  if (!name || !email || !password) {
     return res.status(400).json({ message: "All fields required" });
+  }
 
   try {
     const [existing] = await db.query(
-      "SELECT * FROM customers WHERE email = ?", 
+      "SELECT id FROM customers WHERE email = ?",
       [email]
     );
 
-    if (existing.length > 0)
+    if (existing.length > 0) {
       return res.status(400).json({ message: "Email already registered" });
+    }
 
     const hashed = await bcrypt.hash(password, 10);
 
@@ -194,7 +213,7 @@ router.post("/register/customer", async (req, res) => {
     res.status(201).json({ message: "Customer registered successfully" });
   } catch (err) {
     console.error("❌ Customer registration error:", err);
-    res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -203,18 +222,20 @@ router.post("/login/customer", async (req, res) => {
   const { email, password } = req.body;
 
   const [rows] = await db.query(
-    "SELECT * FROM customers WHERE email = ?", 
+    "SELECT * FROM customers WHERE email = ?",
     [email]
   );
 
-  if (rows.length === 0)
+  if (rows.length === 0) {
     return res.status(401).json({ message: "Invalid credentials" });
+  }
 
   const customer = rows[0];
   const ok = await bcrypt.compare(password, customer.password);
 
-  if (!ok)
+  if (!ok) {
     return res.status(401).json({ message: "Invalid credentials" });
+  }
 
   const token = jwt.sign(
     { id: customer.id, email: customer.email, role: "customer" },
@@ -234,8 +255,8 @@ router.post("/login/customer", async (req, res) => {
     customer: {
       id: customer.id,
       name: customer.name,
-      email: customer.email
-    }
+      email: customer.email,
+    },
   });
 });
 
