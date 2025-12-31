@@ -2,7 +2,6 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import bodyParser from "body-parser";
 
 import authRoutes from "./routes/auth.js";
 import sellerRoutes from "./routes/seller.js";
@@ -11,7 +10,9 @@ import db from "./db.js";
 
 const app = express();
 
-// Test DB connection on startup
+/* ===============================
+   TEST DB CONNECTION
+================================ */
 (async () => {
   try {
     const connection = await db.getConnection();
@@ -22,47 +23,50 @@ const app = express();
   }
 })();
 
-// ---------------- MIDDLEWARES ----------------
+/* ===============================
+   MIDDLEWARES
+================================ */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(bodyParser.json());
 
-// CORS configuration
-const allowedOrigins = [
-  "https://fyp-frontend-iota-five.vercel.app",
-  process.env.CLIENT_URL,
-].filter(Boolean);
-
+/* ===============================
+   ✅ FIXED CORS CONFIG
+   (NO HTML ERRORS, NO 401)
+================================ */
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: true, // allow all origins (best for API)
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
 
-// ---------------- ROUTES ----------------
+/* ===============================
+   ROUTES
+================================ */
 app.use("/api/auth", authRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Test route
+/* ===============================
+   TEST ROUTE
+================================ */
 app.get("/", (req, res) => {
-  res.send("Backend API running ✔️");
+  res.json({ message: "Backend API running ✔️" });
 });
 
-// ---------------- LOCAL DEVELOPMENT ----------------
+/* ===============================
+   LOCAL DEV SERVER
+================================ */
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 }
 
-// ---------------- EXPORT FOR VERCEL ----------------
+/* ===============================
+   EXPORT FOR VERCEL
+================================ */
 export default app;
